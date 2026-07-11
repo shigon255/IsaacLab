@@ -3,6 +3,23 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+"""Bimanual Push-T environment: two ALOHA/ViperX-300s arms facing each other, planar motion, top-down view.
+
+Robot placement geometry
+------------------------
+Two ViperX 300s arms (the ALOHA follower arms) are placed on opposite sides of the table:
+
+  robot_left  : base at (-0.55, 0.0, 0.0), yaw = 0   → faces +X, appears screen-left
+  robot_right : base at (+0.55, 0.0, 0.0), yaw = 180° → faces -X, appears screen-right
+
+Camera nudge in -Y resolves: screen-right = +X, screen-up = +Y.
+WASD/IJKL key layout aligns with this orientation.
+
+Joint names (after MJCF→USD sanitisation, '/' → '_'):
+  Arm joints : waist, shoulder, elbow, forearm_roll, wrist_angle, wrist_rotate
+  EE body    : gripper_link
+"""
+
 import math
 
 import isaaclab.sim as sim_utils
@@ -20,39 +37,59 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import CameraCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg
 from isaaclab.utils import configclass
-from isaaclab_assets.robots.franka import FRANKA_PANDA_HIGH_PD_CFG
+from isaaclab_assets.robots.aloha import VX300S_HIGH_PD_CFG
 
 from . import mdp
 
+# ---- Shared constants (same as single-arm scene) ----
+from .pusht_env_cfg import TABLE_TOP_Z, BLOCK_HEIGHT, OBJECT_Z, GOAL_XY, GOAL_YAW
 
-TABLE_TOP_Z = 0.0
-BLOCK_HEIGHT = 0.04
-OBJECT_Z = TABLE_TOP_Z + BLOCK_HEIGHT * 0.5 + 0.002
-GOAL_XY = (0.16, 0.02)
-GOAL_YAW = math.pi / 4.0
+# Quaternion for 180° yaw around Z: (w=0, x=0, y=0, z=1)
+_ROT_180_Z = (0.0, 0.0, 0.0, 1.0)
 
 
 @configclass
-class PushTSceneCfg(InteractiveSceneCfg):
-    """Tabletop Push-T scene."""
+class PushTBimanualSceneCfg(InteractiveSceneCfg):
+    """Tabletop bimanual Push-T scene using two ViperX 300s (ALOHA follower) arms.
 
-    # ---- Franka Panda arm ----
-    # High-PD variant recommended for differential-IK task-space control.
-    # Mounted just behind the table edge; fingers start closed.
-    robot: ArticulationCfg = FRANKA_PANDA_HIGH_PD_CFG.replace(
-        prim_path="{ENV_REGEX_NS}/Robot",
+    robot_left  : base at (-0.55, 0, 0), yaw=0  → faces +X, appears screen-left.
+    robot_right : base at (+0.55, 0, 0), yaw=180° → faces -X, appears screen-right.
+    """
+
+    # ---- Left ViperX arm (ALOHA) ----
+    robot_left: ArticulationCfg = VX300S_HIGH_PD_CFG.replace(
+        prim_path="{ENV_REGEX_NS}/RobotLeft",
         init_state=ArticulationCfg.InitialStateCfg(
-            pos=(-0.60, 0.0, 0.0),
-            rot=(1.0, 0.0, 0.0, 0.0),
+            pos=(-0.55, 0.0, 0.0),
+            rot=(1.0, 0.0, 0.0, 0.0),  # yaw = 0, faces +X
             joint_pos={
-                "panda_joint1": 0.0,
-                "panda_joint2": -0.569,
-                "panda_joint3": 0.0,
-                "panda_joint4": -2.810,
-                "panda_joint5": 0.0,
-                "panda_joint6": 3.037,
-                "panda_joint7": 0.741,
-                "panda_finger_joint.*": 0.0,  # closed gripper
+                "waist": 0.0,
+                "shoulder": -0.96,
+                "elbow": 1.16,
+                "forearm_roll": 0.0,
+                "wrist_angle": -0.3,
+                "wrist_rotate": 0.0,
+                "left_finger": 0.035,
+                "right_finger": -0.035,
+            },
+        ),
+    )
+
+    # ---- Right ViperX arm (ALOHA) ----
+    robot_right: ArticulationCfg = VX300S_HIGH_PD_CFG.replace(
+        prim_path="{ENV_REGEX_NS}/RobotRight",
+        init_state=ArticulationCfg.InitialStateCfg(
+            pos=(0.55, 0.0, 0.0),
+            rot=_ROT_180_Z,  # yaw = 180°, faces -X
+            joint_pos={
+                "waist": 0.0,
+                "shoulder": -0.96,
+                "elbow": 1.16,
+                "forearm_roll": 0.0,
+                "wrist_angle": -0.3,
+                "wrist_rotate": 0.0,
+                "left_finger": 0.035,
+                "right_finger": -0.035,
             },
         ),
     )
@@ -90,7 +127,10 @@ class PushTSceneCfg(InteractiveSceneCfg):
 
     goal = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/Goal",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(GOAL_XY[0], GOAL_XY[1], TABLE_TOP_Z + 0.004), rot=(0.92388, 0.0, 0.0, 0.38268)),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=(GOAL_XY[0], GOAL_XY[1], TABLE_TOP_Z + 0.004),
+            rot=(0.92388, 0.0, 0.0, 0.38268),
+        ),
         spawn=mdp.PushTShapeCfg(
             func=mdp.spawn_t_shape,
             bar_size=(0.24, 0.08, 0.008),
@@ -105,14 +145,17 @@ class PushTSceneCfg(InteractiveSceneCfg):
         update_period=0.0,
         height=128,
         width=128,
-        data_types=["rgb"],
+        data_types=["rgb", "instance_id_segmentation_fast"],
+        # colorize=False → raw uint32 prim-id image used by edge_image for arm contours.
+        colorize_instance_id_segmentation=False,
         spawn=sim_utils.PinholeCameraCfg(
             focal_length=18.0,
             focus_distance=1.0,
             horizontal_aperture=20.955,
-            clipping_range=(0.05, 2.0),
+            clipping_range=(0.05, 3.0),
         ),
-        offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.78), rot=(0.0, 1.0, 0.0, 0.0), convention="ros"),
+        # Top-down: ROS convention, rot=(0,1,0,0) = 180° around X → lens points -world-Z.
+        offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.90), rot=(0.0, 1.0, 0.0, 0.0), convention="ros"),
     )
 
     ground = AssetBaseCfg(
@@ -129,22 +172,38 @@ class PushTSceneCfg(InteractiveSceneCfg):
 
 @configclass
 class ActionsCfg:
-    # control_yaw_offset=0.0: for training the policy emits world-frame commands (no rotation).
-    # For teleoperation, teleop_pusht.py reads the live viewport camera azimuth each frame
-    # and calls pusher_term.set_control_yaw(azimuth) so "forward" always points up-screen
-    # regardless of how the camera was moved (mouse or keyboard).
-    pusher = mdp.FrankaEEPusherActionCfg(
-        asset_name="robot",
-        arm_joint_names=["panda_joint.*"],
-        ee_body_name="panda_hand",
-        ee_z_height=0.15,
+    """Planar (2-DoF) action for each arm.  Action vector = [vx_L, vy_L, vx_R, vy_R]."""
+
+    # enable_z=False: planar-only; EE height fixed at ee_z_height.
+    # subtract_frame_transforms handles the 180°-rotated right arm automatically.
+    pusher_left = mdp.FrankaEEPusherActionCfg(
+        asset_name="robot_left",
+        arm_joint_names=["waist", "shoulder", "elbow", "forearm_roll", "wrist_angle", "wrist_rotate"],
+        ee_body_name="gripper_link",
+        # gripper_link centre at lower quarter of T-block: TABLE_TOP_Z + BLOCK_HEIGHT * 0.25 = 0.01
+        ee_z_height=TABLE_TOP_Z + BLOCK_HEIGHT * 0.25,
         velocity_scale=0.35,
-        yaw_rate_scale=0.0,
-        z_velocity_scale=0.35,
-        z_workspace=(0.05, 0.40),
-        workspace=((-0.38, -0.25), (0.20, 0.25)),
+        z_velocity_scale=0.20,
+        z_workspace=(0.005, 0.40),
+        workspace=((-0.42, -0.25), (0.12, 0.25)),
         control_yaw_offset=0.0,
         default_target_xy=(-0.25, 0.0),
+        enable_z=True,
+    )
+
+    pusher_right = mdp.FrankaEEPusherActionCfg(
+        asset_name="robot_right",
+        arm_joint_names=["waist", "shoulder", "elbow", "forearm_roll", "wrist_angle", "wrist_rotate"],
+        ee_body_name="gripper_link",
+        # gripper_link centre at lower quarter of T-block: TABLE_TOP_Z + BLOCK_HEIGHT * 0.25 = 0.01
+        ee_z_height=TABLE_TOP_Z + BLOCK_HEIGHT * 0.25,
+        velocity_scale=0.35,
+        z_velocity_scale=0.20,
+        z_workspace=(0.005, 0.40),
+        workspace=((-0.12, -0.25), (0.42, 0.25)),
+        control_yaw_offset=0.0,
+        default_target_xy=(0.25, 0.0),
+        enable_z=True,
     )
 
 
@@ -156,11 +215,22 @@ class ObservationsCfg:
             func=mdp.image,
             params={"sensor_cfg": SceneEntityCfg("fixed_cam"), "data_type": "rgb", "normalize": False},
         )
-        state = ObsTerm(
-            func=mdp.robot_ee_state_obs,
+        edge_cam = ObsTerm(
+            func=mdp.edge_image,
             params={
-                "robot_cfg": SceneEntityCfg("robot"),
-                "ee_body_name": "panda_hand",
+                "object_cfg": SceneEntityCfg("t_block"),
+                "camera_cfg": SceneEntityCfg("fixed_cam"),
+                "goal_xy": GOAL_XY,
+                "goal_yaw": GOAL_YAW,
+            },
+        )
+        state = ObsTerm(
+            func=mdp.bimanual_ee_state_obs,
+            params={
+                "robot_cfg": SceneEntityCfg("robot_left"),
+                "left_ee_body_name": "gripper_link",
+                "right_robot_cfg": SceneEntityCfg("robot_right"),
+                "right_ee_body_name": "gripper_link",
                 "object_cfg": SceneEntityCfg("t_block"),
                 "goal_xy": GOAL_XY,
                 "goal_yaw": GOAL_YAW,
@@ -177,15 +247,22 @@ class ObservationsCfg:
 
 @configclass
 class EventCfg:
-    # Reset the Franka arm to its default joint configuration each episode.
-    # position_range=(1.0, 1.0) means "scale default by 1" = exact default; velocity = 0.
-    reset_robot = EventTerm(
+    reset_robot_left = EventTerm(
         func=mdp.reset_joints_by_scale,
         mode="reset",
         params={
             "position_range": (1.0, 1.0),
             "velocity_range": (0.0, 0.0),
-            "asset_cfg": SceneEntityCfg("robot"),
+            "asset_cfg": SceneEntityCfg("robot_left"),
+        },
+    )
+    reset_robot_right = EventTerm(
+        func=mdp.reset_joints_by_scale,
+        mode="reset",
+        params={
+            "position_range": (1.0, 1.0),
+            "velocity_range": (0.0, 0.0),
+            "asset_cfg": SceneEntityCfg("robot_right"),
         },
     )
     reset_block = EventTerm(
@@ -233,8 +310,8 @@ class TerminationsCfg:
 
 
 @configclass
-class PushTEnvCfg(ManagerBasedRLEnvCfg):
-    scene: PushTSceneCfg = PushTSceneCfg(num_envs=16, env_spacing=1.2, replicate_physics=True)
+class PushTBimanualEnvCfg(ManagerBasedRLEnvCfg):
+    scene: PushTBimanualSceneCfg = PushTBimanualSceneCfg(num_envs=1, env_spacing=1.5, replicate_physics=True)
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
     events: EventCfg = EventCfg()
@@ -252,12 +329,10 @@ class PushTEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.friction_correlation_distance = 0.00625
         self.num_rerenders_on_reset = 2
         self.image_obs_list = ["fixed_cam"]
-        # Angled 3rd-person viewport: wide coverage of the whole table.
-        # The eye/lookat are in the coordinate frame of env_0.
-        # control_yaw_offset in ActionsCfg is set to atan2(0.9, 1.3) so that pressing
-        # "forward" moves the pusher toward the top of this screen.
+        # Nudge eye in -Y: screen-right = +X, screen-up = +Y.
+        # Left arm (-X) appears screen-left; right arm (+X) appears screen-right.
         self.viewer = ViewerCfg(
-            eye=(-1.3, -0.9, 1.0),
+            eye=(0.0, -0.001, 1.8),
             lookat=(0.0, 0.0, 0.0),
             origin_type="env",
             env_index=0,
@@ -267,7 +342,7 @@ class PushTEnvCfg(ManagerBasedRLEnvCfg):
                 "keyboard": Se2KeyboardCfg(
                     v_x_sensitivity=0.6,
                     v_y_sensitivity=0.6,
-                    omega_z_sensitivity=0.6,  # Z/X keys → EE up/down
+                    omega_z_sensitivity=0.0,
                     sim_device=self.sim.device,
                 )
             }

@@ -16,3 +16,12 @@ gym.register(
         "env_cfg_entry_point": f"{__name__}.pusht_env_cfg:PushTEnvCfg",
     },
 )
+
+gym.register(
+    id="Isaac-PushT-Bimanual-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.pusht_bimanual_env_cfg:PushTBimanualEnvCfg",
+    },
+)

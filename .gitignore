@@ -73,3 +73,9 @@ tests/
 # TacSL sensor
 **/tactile_record/*
 **/gelsight_r15_data/*
+
+# MuJoCo Menagerie source used only for one-time MJCF->USD conversion
+# (convert_mjcf.py) -- has its own nested .git, 465MB, not needed at
+# runtime. Mirrors phys-vidsim's docs/ref_repos/ convention: kept local
+# for reference/reconversion, never committed.
+/_aloha_src/
