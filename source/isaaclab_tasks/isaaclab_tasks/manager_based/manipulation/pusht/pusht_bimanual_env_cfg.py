@@ -148,7 +148,9 @@ class PushTBimanualSceneCfg(InteractiveSceneCfg):
         # distance_to_image_plane (not distance_to_camera): perspective/plane-Z depth,
         # matching Genesis's depth semantics (linear camera-space Z, not Euclidean range) —
         # required for the isaac_backend condition bridge (phys-vidsim's FrameContext.depth).
-        data_types=["rgb", "instance_id_segmentation_fast", "distance_to_image_plane"],
+        # normals: surface normal vectors, for phys-vidsim's `normal` condition
+        # (isaac_backend/frame_bridge.py::convert_normal).
+        data_types=["rgb", "instance_id_segmentation_fast", "distance_to_image_plane", "normals"],
         # colorize=False → raw uint32 prim-id image used by edge_image for arm contours.
         colorize_instance_id_segmentation=False,
         spawn=sim_utils.PinholeCameraCfg(
