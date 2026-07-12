@@ -143,6 +143,16 @@ class PushTBimanualSceneCfg(InteractiveSceneCfg):
     fixed_cam = CameraCfg(
         prim_path="{ENV_REGEX_NS}/FixedCamera",
         update_period=0.0,
+        # Without this, Camera._update_buffers_impl() never calls _update_poses() (see that
+        # method's own `if self.cfg.update_latest_camera_pose:` gate) -- CameraData.pos_w/
+        # quat_w_ros/quat_w_world stay frozen at whatever they were at the sensor's initial
+        # setup, forever, no matter how many times the prim is later repositioned at runtime
+        # (e.g. phys-vidsim's isaac_backend viewpoint-orbit teleop feature, which calls
+        # Camera.set_world_poses_from_view() every time the user orbits). The underlying USD
+        # xformOp:translate/orient DO update correctly (verified live) -- only the CACHED
+        # CameraData snapshot doesn't, since this flag is False by default (a deliberate perf
+        # optimization for the common case of a truly static camera, which this one is NOT).
+        update_latest_camera_pose=True,
         height=128,
         width=128,
         # distance_to_image_plane (not distance_to_camera): perspective/plane-Z depth,
