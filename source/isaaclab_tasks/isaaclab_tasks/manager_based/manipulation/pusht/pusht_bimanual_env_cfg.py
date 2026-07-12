@@ -326,9 +326,17 @@ class PushTBimanualEnvCfg(ManagerBasedRLEnvCfg):
     curriculum = None
 
     def __post_init__(self):
-        self.decimation = 2
+        # dt=1/500, decimation=10 -> control rate = 0.02s (50 Hz), matching
+        # phys-vidsim's Genesis backend (simulation/sim_common/scene_base.py's
+        # DEFAULT_DT=1/500, DEFAULT_SUBSTEPS=10) exactly, so a recorded demo's
+        # frame_steps=3 gives the SAME 0.06s/frame = 16.667 fps cadence on both
+        # backends -- previously (dt=1/120, decimation=2 -> 60 Hz) no integer
+        # frame_steps could hit that rate, so Isaac-authored demos played back
+        # at the wrong physical speed relative to Genesis-authored ones (and
+        # relative to Wan2.2's native 16 fps -- see run_teleop.sh's own comment).
+        self.decimation = 10
         self.episode_length_s = 10.0
-        self.sim.dt = 1.0 / 120.0
+        self.sim.dt = 1.0 / 500.0
         self.sim.render_interval = self.decimation
         self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.friction_correlation_distance = 0.00625
