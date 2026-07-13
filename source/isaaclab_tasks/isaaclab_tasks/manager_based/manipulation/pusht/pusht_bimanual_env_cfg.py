@@ -153,8 +153,16 @@ class PushTBimanualSceneCfg(InteractiveSceneCfg):
         # CameraData snapshot doesn't, since this flag is False by default (a deliberate perf
         # optimization for the common case of a truly static camera, which this one is NOT).
         update_latest_camera_pose=True,
-        height=128,
-        width=128,
+        # 512x512, not 128 -- matches Genesis's own render resolution (simulation/sim_common's
+        # scenes all render at 512, chosen to match Wan2.2-Fun-Control's native output
+        # resolution with no downstream resize). Found live 2026-07-13: evaluation/run_eval.py's
+        # image-metrics stage asserts GT/gen shapes match exactly, so a 128 GT here fails against
+        # Wan's always-512 output -- not a downstream-script bug, this config was just never
+        # reconciled with Genesis's convention before. Real cost: 16x more pixels than 128x128 to
+        # render/store per frame (slower Replicator throughput, more VRAM) -- accepted in
+        # exchange for zero eval-pipeline special-casing.
+        height=512,
+        width=512,
         # distance_to_image_plane (not distance_to_camera): perspective/plane-Z depth,
         # matching Genesis's depth semantics (linear camera-space Z, not Euclidean range) —
         # required for the isaac_backend condition bridge (phys-vidsim's FrameContext.depth).

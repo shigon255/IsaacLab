@@ -127,8 +127,11 @@ class FrankaStackSceneCfg(InteractiveSceneCfg):
         # rationale -- required for isaac_backend's runtime camera repositioning
         # (viewpoint orbit / per-demo replay pose) to actually be readable back.
         update_latest_camera_pose=True,
-        height=128,
-        width=128,
+        # 512x512, matching Genesis's convention (see ../pusht/pusht_bimanual_env_cfg.py's
+        # identical field for the full rationale -- found live 2026-07-13 via run_eval.py's
+        # GT/gen shape assertion against Wan's always-512 output).
+        height=512,
+        width=512,
         data_types=["rgb", "instance_id_segmentation_fast", "distance_to_image_plane", "normals"],
         colorize_instance_id_segmentation=False,
         spawn=sim_utils.PinholeCameraCfg(
