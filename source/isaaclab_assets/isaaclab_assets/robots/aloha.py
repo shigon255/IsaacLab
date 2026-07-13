@@ -24,13 +24,23 @@ Reference:
   https://aloha-2.github.io/
 """
 
+from pathlib import Path
+
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
-# Absolute path to the locally-converted ViperX 300s USD.
-# Run scripts/tools/convert_mjcf.py to generate this file from the MuJoCo Menagerie MJCF.
-_VX300S_USD_PATH = "/project/yi-ray/IsaacLab/_aloha_usd/vx300s/vx300s.usd"
+# Path to the locally-converted ViperX 300s USD, resolved relative to THIS repo checkout
+# (not a hardcoded machine-specific absolute path -- that was a real portability bug: it
+# silently worked only on the one machine/clone where it was first written, and would
+# resolve to nothing on a fresh clone or a different checkout location, e.g.
+# phys-vidsim's submodules/IsaacLab vs. this repo's own dev clone). _aloha_usd/ is
+# gitignored (not committed, matching this repo's own **/*.usd convention) -- run
+# phys-vidsim's scripts/setup_aloha_assets.sh (or manually: scripts/tools/convert_mjcf.py
+# against a MuJoCo Menagerie checkout) to populate it at THIS repo's root before using
+# VX300S_CFG/VX300S_HIGH_PD_CFG.
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+_VX300S_USD_PATH = str(_REPO_ROOT / "_aloha_usd" / "vx300s" / "vx300s.usd")
 
 VX300S_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
