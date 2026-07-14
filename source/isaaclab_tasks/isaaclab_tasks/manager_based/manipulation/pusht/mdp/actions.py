@@ -293,7 +293,11 @@ class FrankaEEPusherAction(ActionTerm):
             ee_quat_w = self._asset.data.body_quat_w[env_ids, self._ee_body_idx]
             _, ee_quat_b = math_utils.subtract_frame_transforms(root_pos_w, root_quat_w, ee_pos_w, ee_quat_w)
             if self._home_quat_b is None:
+                # Identity quat (w,x,y,z), not zeros -- a partial first reset (some env_ids only)
+                # would otherwise leave un-reset envs' slot at [0,0,0,0], an invalid quaternion
+                # fed straight into the IK pose command for every env in apply_actions().
                 self._home_quat_b = torch.zeros(self._env.num_envs, 4, device=self.device)
+                self._home_quat_b[:, 0] = 1.0
             self._home_quat_b[env_ids] = ee_quat_b
 
 
