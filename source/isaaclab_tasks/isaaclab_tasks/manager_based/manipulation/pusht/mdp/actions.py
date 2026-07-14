@@ -152,7 +152,13 @@ class FrankaEEPusherAction(ActionTerm):
             device=self.device,
         )
         self._lock_orientation = cfg.lock_orientation
-        self._home_quat_b: torch.Tensor | None = None
+        # Eagerly identity-initialized (w,x,y,z), matching every other per-env buffer in this
+        # __init__ (_target_xy, _raw_actions, ...) -- reset() overwrites this with the real
+        # captured pose; a caller invoking apply_actions() before any reset() (not the case in
+        # this repo's own teleop script, which always resets first, but not guaranteed for any
+        # future reuse of this action term) gets a valid identity quat instead of a None deref.
+        self._home_quat_b = torch.zeros(env.num_envs, 4, device=self.device)
+        self._home_quat_b[:, 0] = 1.0
 
         # Z-axis target (per-env, mutable — integrated from the 3rd action channel)
         self._target_z = torch.full((env.num_envs,), cfg.ee_z_height, device=self.device)
@@ -292,12 +298,10 @@ class FrankaEEPusherAction(ActionTerm):
             ee_pos_w = self._asset.data.body_pos_w[env_ids, self._ee_body_idx]
             ee_quat_w = self._asset.data.body_quat_w[env_ids, self._ee_body_idx]
             _, ee_quat_b = math_utils.subtract_frame_transforms(root_pos_w, root_quat_w, ee_pos_w, ee_quat_w)
-            if self._home_quat_b is None:
-                # Identity quat (w,x,y,z), not zeros -- a partial first reset (some env_ids only)
-                # would otherwise leave un-reset envs' slot at [0,0,0,0], an invalid quaternion
-                # fed straight into the IK pose command for every env in apply_actions().
-                self._home_quat_b = torch.zeros(self._env.num_envs, 4, device=self.device)
-                self._home_quat_b[:, 0] = 1.0
+            # __init__ already identity-initialized this for every env -- a partial reset
+            # (some env_ids only) leaves the other envs' slot at that valid identity quat
+            # rather than [0,0,0,0], an invalid quaternion fed straight into the IK pose
+            # command in apply_actions().
             self._home_quat_b[env_ids] = ee_quat_b
 
 
