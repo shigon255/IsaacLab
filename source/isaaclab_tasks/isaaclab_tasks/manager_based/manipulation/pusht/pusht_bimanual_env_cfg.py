@@ -212,6 +212,7 @@ class ActionsCfg:
         control_yaw_offset=0.0,
         default_target_xy=(-0.25, 0.0),
         enable_z=True,
+        lock_orientation=True,
     )
 
     pusher_right = mdp.FrankaEEPusherActionCfg(
@@ -227,6 +228,7 @@ class ActionsCfg:
         control_yaw_offset=0.0,
         default_target_xy=(0.25, 0.0),
         enable_z=True,
+        lock_orientation=True,
     )
 
 

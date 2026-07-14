@@ -140,16 +140,19 @@ class FrankaEEPusherAction(ActionTerm):
                 else self._arm_joint_ids
             )
 
-        # position-only IK: EE orientation is unconstrained, avoiding singularity issues
+        # position-only IK by default (orientation unconstrained, avoiding singularity issues);
+        # cfg.lock_orientation switches to "pose" (position AND orientation constrained) instead.
         self._ik_controller = DifferentialIKController(
             cfg=DifferentialIKControllerCfg(
-                command_type="position",
+                command_type="pose" if cfg.lock_orientation else "position",
                 use_relative_mode=False,
                 ik_method="dls",
             ),
             num_envs=env.num_envs,
             device=self.device,
         )
+        self._lock_orientation = cfg.lock_orientation
+        self._home_quat_b: torch.Tensor | None = None
 
         # Z-axis target (per-env, mutable — integrated from the 3rd action channel)
         self._target_z = torch.full((env.num_envs,), cfg.ee_z_height, device=self.device)
@@ -241,8 +244,13 @@ class FrankaEEPusherAction(ActionTerm):
         ee_quat_w = self._asset.data.body_quat_w[:, self._ee_body_idx]
         ee_pos_b, ee_quat_b = math_utils.subtract_frame_transforms(root_pos_w, root_quat_w, ee_pos_w, ee_quat_w)
 
-        # Set absolute position command and compute joint targets via differential IK
-        self._ik_controller.set_command(target_pos_b, ee_pos=ee_pos_b, ee_quat=ee_quat_b)
+        # Set absolute position (or position+orientation, if locked) command and compute joint
+        # targets via differential IK.
+        if self._lock_orientation:
+            command = torch.cat([target_pos_b, self._home_quat_b], dim=-1)
+        else:
+            command = target_pos_b
+        self._ik_controller.set_command(command, ee_pos=ee_pos_b, ee_quat=ee_quat_b)
 
         jac_w = self._asset.root_physx_view.get_jacobians()[:, self._jac_body_idx, :, self._jac_joint_ids]
         base_rot_matrix = math_utils.matrix_from_quat(math_utils.quat_inv(root_quat_w))
@@ -272,6 +280,21 @@ class FrankaEEPusherAction(ActionTerm):
         self._raw_actions[env_ids] = 0.0
         self._processed_actions[env_ids] = 0.0
         self._ik_controller.reset(env_ids)
+
+        if self._lock_orientation:
+            # Capture the EE's current base-frame orientation once per reset, held fixed
+            # thereafter — the Isaac equivalent of Genesis's ArmController._home_quat. Mirrors
+            # apply_actions()'s own subtract_frame_transforms() call exactly (same four
+            # arguments: root pos/quat, then the body's own world pos/quat) rather than reusing
+            # root_pos_w as a stand-in for the body position.
+            root_pos_w = self._asset.data.root_pos_w[env_ids]
+            root_quat_w = self._asset.data.root_quat_w[env_ids]
+            ee_pos_w = self._asset.data.body_pos_w[env_ids, self._ee_body_idx]
+            ee_quat_w = self._asset.data.body_quat_w[env_ids, self._ee_body_idx]
+            _, ee_quat_b = math_utils.subtract_frame_transforms(root_pos_w, root_quat_w, ee_pos_w, ee_quat_w)
+            if self._home_quat_b is None:
+                self._home_quat_b = torch.zeros(self._env.num_envs, 4, device=self.device)
+            self._home_quat_b[env_ids] = ee_quat_b
 
 
 @configclass
@@ -325,3 +348,10 @@ class FrankaEEPusherActionCfg(ActionTermCfg):
     action channel is ignored, and the EE height stays pinned at
     ``ee_z_height`` for the entire episode.  The single-arm Push-T scene
     leaves this at the default True."""
+
+    lock_orientation: bool = False
+    """If True, fully constrain the EE's orientation to whatever it was at the last reset()
+    (via the IK controller's "pose" command type instead of "position") — eliminates IK
+    null-space orientation drift during pure position-tracking motion, at the cost of the EE
+    never being able to rotate at all. False (default) reproduces the original behavior exactly:
+    orientation left fully unconstrained for IK."""
