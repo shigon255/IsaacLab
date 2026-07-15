@@ -93,11 +93,17 @@ _REPO_ROOT_USD_DIR = "_robosuite_usd"
 
 
 def _object_cfg(name: str) -> RigidObjectCfg:
-    import os
     from pathlib import Path
 
     repo_root = Path(__file__).resolve().parents[6]  # .../submodules/IsaacLab (or the dev clone root)
-    usd_path = str(repo_root / _REPO_ROOT_USD_DIR / f"{_OBJECT_USD_NAME[name]}.usd")
+    # Per-object SUBDIRECTORY (_robosuite_usd/<name>/<name>.usd), not a shared flat
+    # _robosuite_usd/<name>.usd -- see scripts/setup_robosuite_object_assets.sh's own
+    # comment for why: MeshConverter writes its instanceable-geometry sublayer to a
+    # FIXED relative path inside whatever usd_dir it's given, so objects sharing one
+    # usd_dir silently clobber each other's geometry (confirmed live via a real
+    # teleop crash -- RigidBodyAPI resolution failed for every object except the
+    # last one converted).
+    usd_path = str(repo_root / _REPO_ROOT_USD_DIR / _OBJECT_USD_NAME[name] / f"{_OBJECT_USD_NAME[name]}.usd")
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{_OBJECT_PRIM_NAME[name]}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_OBJECT_INIT_POS[name], rot=_OBJECT_INIT_ROT),
