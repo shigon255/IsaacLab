@@ -201,13 +201,23 @@ class ActionsCfg:
         asset_name="robot_left",
         arm_joint_names=["waist", "shoulder", "elbow", "forearm_roll", "wrist_angle", "wrist_rotate"],
         ee_body_name="gripper_link",
-        ee_z_height=_BLOCK_HALF_SIZE,
+        # 0.25 matches every sibling scene's own reset-hover convention (franka_stack/
+        # ur5e_pickplace/kuka_nutassembly all use ee_z_height=0.25) -- well above the
+        # 0.05m-tall blocks. This used to be _BLOCK_HALF_SIZE (0.025) with
+        # default_target_xy=(-0.15, 0.0), which is EXACTLY block_0's own spawn position
+        # (see _BLOCK_INIT_POS above): reset() snaps the IK target straight there
+        # (actions.py's FrankaEEPusherAction.reset()), so the arm drove its gripper
+        # directly into block_0 on every env reset before any teleop input. Confirmed
+        # live via real teleop -- fixed by hovering above and offsetting sideways,
+        # clear of the whole block row (X=[-0.15, 0.15]), same as franka_stack's own
+        # cube-clearing default.
+        ee_z_height=0.25,
         velocity_scale=0.35,
         z_velocity_scale=0.20,
         z_workspace=(0.005, 0.40),
         workspace=((-0.42, -0.25), (0.12, 0.25)),
         control_yaw_offset=0.0,
-        default_target_xy=(-0.15, 0.0),
+        default_target_xy=(-0.35, 0.0),
         enable_z=True,
         lock_orientation=True,
     )
@@ -222,13 +232,15 @@ class ActionsCfg:
         asset_name="robot_right",
         arm_joint_names=["waist", "shoulder", "elbow", "forearm_roll", "wrist_angle", "wrist_rotate"],
         ee_body_name="gripper_link",
-        ee_z_height=_BLOCK_HALF_SIZE,
+        # See pusher_left's comment above -- same bug (default_target_xy=(0.15, 0.0) was
+        # EXACTLY block_3's spawn position), same fix.
+        ee_z_height=0.25,
         velocity_scale=0.35,
         z_velocity_scale=0.20,
         z_workspace=(0.005, 0.40),
         workspace=((-0.12, -0.25), (0.42, 0.25)),
         control_yaw_offset=0.0,
-        default_target_xy=(0.15, 0.0),
+        default_target_xy=(0.35, 0.0),
         enable_z=True,
         lock_orientation=True,
     )
