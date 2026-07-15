@@ -136,6 +136,20 @@ class KukaNutAssemblySceneCfg(InteractiveSceneCfg):
             horizontal_aperture=20.955,
             clipping_range=(0.05, 3.0),
         ),
+        # This raw spawn-time offset (every sibling scene's own top-down convention)
+        # is a rarely-exercised fallback ONLY -- collect_demos_isaac.py repositions
+        # fixed_cam to the oblique scene.DEFAULT_CAM_EYE/DEFAULT_CAM_LOOKAT default
+        # right after every env.reset() (see that module's own comment on
+        # `_initial_eye`), and replay_render_isaac.py always prefers a demo's own
+        # recorded cam_pos/cam_lookat, falling back to DEFAULT_CAM_EYE/LOOKAT only for
+        # a demo whose metadata is missing them entirely -- this raw offset is never
+        # actually rendered in normal operation. An earlier pass tuned THIS value
+        # (height 0.9->1.8, focal_length 18->14) chasing what turned out to be a
+        # --auto-start ordering bug (fixed in collect_demos_isaac.py, see its own
+        # comment) that made auto-start-recorded demos capture this dead default
+        # instead of the real oblique one -- reverted back to the sibling convention
+        # once the actual bug (and the real viewpoint fix, in
+        # scenes/kuka_nutassembly.py's DEFAULT_CAM_EYE) were found instead.
         offset=CameraCfg.OffsetCfg(pos=(0.35, 0.0, 0.9), rot=(0.0, 1.0, 0.0, 0.0), convention="ros"),
     )
 
@@ -168,7 +182,20 @@ class ActionsCfg:
         control_yaw_offset=0.0,
         default_target_xy=(0.35, 0.0),
         enable_z=True,
-        lock_orientation=True,
+        # lock_orientation=True (every sibling scene's own default) was confirmed live
+        # to be kinematically infeasible here: driving the arm toward round_nut's own
+        # position (0.35,-0.10,~0.05) while holding the home pose's EE orientation fixed
+        # pins 4 of the 7 joints exactly at their hard limits and diverges rather than
+        # converging (a real diagnostic script, not assumed -- see
+        # exps/current/isaac-lab-multi-scene/status.md). KUKA's home pose (matching
+        # Genesis's own _KUKA_HOME_QPOS -- can't change independently, both backends'
+        # teleop must start from the same joint config) is tuned for a forward/elevated
+        # reach, not a close-in low one, and that specific orientation just isn't
+        # compatible with reaching down near the base. Free-orientation (position-only)
+        # IK sidesteps the conflict entirely -- re-verified with the same script:
+        # converges to within ~1cm of the nut's XY with 6/7 joints comfortably clear of
+        # their limits (worst case 0.13 rad margin, none pinned).
+        lock_orientation=False,
     )
 
 
