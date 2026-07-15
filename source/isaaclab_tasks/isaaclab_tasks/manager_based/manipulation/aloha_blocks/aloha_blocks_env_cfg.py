@@ -25,13 +25,17 @@ precedent scenes/pusht.py's own module docstring already established.
 Gripper: Genesis's BlocksScene.arm_specs() sets `functional_grip=True` on BOTH arms
 (stacking needs real grasping, unlike Push-T's push-only design) -- so, unlike Push-T,
 this env's ActionsCfg gives each arm a real gripper BinaryJointPositionActionCfg term
-(targeting VX300S's own `left_finger`/`right_finger` joints, open/close values taken
-from pusht_bimanual_env_cfg.py's own robot_left/robot_right init_state, which uses
-(0.035,-0.035) as the resting/open pose) declared immediately after that arm's pusher
-term, same pattern franka_stack_env_cfg.py established for its own single gripper.
-Close values (0.0/0.0, fingers meeting at center) are a reasoned default, NOT confirmed
-live -- verify grasping actually closes on a block via a real teleop session before
-trusting it (see isaac_backend/scenes/aloha_blocks.py's matching note).
+(targeting VX300S's own `left_finger`/`right_finger` joints) declared immediately after
+that arm's pusher term, same pattern franka_stack_env_cfg.py established for its own
+single gripper. Open/close values are the joint's own physical range, (0.057,-0.057)/
+(0.021,-0.021) -- matching Genesis's own FINGER_OPEN_QPOS/FINGER_CLOSED_QPOS
+(simulation/sim_common/control.py) exactly. An earlier pass reused
+pusht_bimanual_env_cfg.py's static resting-pose value (0.035,-0.035)/(0.0,0.0) instead
+(Push-T has no gripper action term, so that value was never exercised as a real
+open/close range there) -- confirmed live via teleop that it opens to a pad-to-pad gap
+narrower than a block's own width, so the gripper could never actually close around
+one; fixed to the joint's true range, see _FINGER_OPEN/_FINGER_CLOSE below for the
+full derivation.
 
 Camera: fixed_cam mirrors ../pusht/pusht_bimanual_env_cfg.py's CameraCfg EXACTLY (same
 top-down rot=(0,1,0,0) static default, position directly above the table center like
@@ -91,10 +95,22 @@ _BLOCK_PRIM_NAME: dict[str, str] = {
 # _ROT_180_Z exactly (robot_right's placement).
 _ROT_180_Z = (0.0, 0.0, 0.0, 1.0)
 
-# VX300S's own resting-pose finger values (pusht_bimanual_env_cfg.py's robot_left/
-# robot_right init_state joint_pos) -- reused here as the "open" gripper command.
-_FINGER_OPEN = {"left_finger": 0.035, "right_finger": -0.035}
-_FINGER_CLOSE = {"left_finger": 0.0, "right_finger": 0.0}
+# left_finger/right_finger are MJCF slide joints with a HARD physical range of
+# [0.021, 0.057] / [-0.057, -0.021] (_aloha_src/trossen_vx300s/vx300s.xml's
+# <default class="left_finger">/<default class="right_finger"> range=, carried through
+# the MJCF->USD conversion as the joint's own limits). These are now the joint's true
+# min/max, matching Genesis's own FINGER_OPEN_QPOS/FINGER_CLOSED_QPOS
+# (simulation/sim_common/control.py) exactly -- NOT the previous (0.035,-0.035)/
+# (0.0,0.0), which was Push-T's decorative static resting-pose value (Push-T has no
+# gripper action term at all, so it never needed a real functional range) copy-pasted
+# here without checking it against the block size. That value only opens to a
+# pad-to-pad gap of ~0.045m (finger pad geoms sit 0.0125m inboard of each joint's own
+# position -- see vx300s.xml's left_finger_pad_0/right_finger_pad_0), LESS than the
+# blocks' own 0.05m width (_BLOCK_HALF_SIZE=0.025) -- the gripper could physically
+# never close around a block, confirmed live via a real teleop session. The joint's
+# true max (0.057/-0.057) opens to ~0.089m, comfortably wider than a block.
+_FINGER_OPEN = {"left_finger": 0.057, "right_finger": -0.057}
+_FINGER_CLOSE = {"left_finger": 0.021, "right_finger": -0.021}
 
 
 def _block_cfg(name: str) -> RigidObjectCfg:
