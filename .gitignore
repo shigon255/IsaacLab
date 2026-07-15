@@ -14,6 +14,11 @@
 **/*.usdc
 **/*.usdz
 
+# phys-vidsim isaac-lab-multi-scene (#21): converted mesh textures are heavy,
+# reproducible via scripts/setup_robosuite_object_assets.sh -- not committed,
+# same policy as the .usd files above (only config.yaml/.asset_hash stay).
+_robosuite_usd/**/textures/
+
 # Python
 .DS_Store
 **/*.egg-info/
