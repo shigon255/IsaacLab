@@ -86,7 +86,13 @@ _OBJECT_INIT_POS: dict[str, tuple[float, float, float]] = {
     "bread":  (0.50,  0.05, 0.0263),
 }
 _OBJECT_INIT_ROT = (1.0, 0.0, 0.0, 0.0)  # identity
-# Reasoned grocery-item-scale masses (kg) -- NOT measured, see module docstring.
+# Reasoned grocery-item-scale masses (kg) -- NOT measured, see module docstring. Baked
+# into the converted USD at conversion time (scripts/setup_robosuite_object_assets.sh's
+# own --mass flag to convert_mesh_to_usd.py), NOT set here -- see that script's
+# matching comment for why a spawn-time-only RigidObjectCfg override doesn't actually
+# create a rigid body on referenced mesh content at all (found live 2026-07-14: a real
+# teleop crash, "Failed to find a rigid body when resolving ...").  Keep this table's
+# values in sync with that script's own OBJECT_MASS if either is changed independently.
 _OBJECT_MASS: dict[str, float] = {"cereal": 0.3, "can": 0.15, "milk": 0.5, "bread": 0.1}
 
 _REPO_ROOT_USD_DIR = "_robosuite_usd"
@@ -104,17 +110,14 @@ def _object_cfg(name: str) -> RigidObjectCfg:
     # teleop crash -- RigidBodyAPI resolution failed for every object except the
     # last one converted).
     usd_path = str(repo_root / _REPO_ROOT_USD_DIR / _OBJECT_USD_NAME[name] / f"{_OBJECT_USD_NAME[name]}.usd")
+    # No rigid_props/collision_props/mass_props here -- physics is baked into the
+    # converted USD itself at conversion time (see this module's _OBJECT_MASS comment
+    # and convert_mesh_to_usd.py's own docstring for why that's required, not a
+    # style choice).
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{_OBJECT_PRIM_NAME[name]}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_OBJECT_INIT_POS[name], rot=_OBJECT_INIT_ROT),
-        spawn=sim_utils.UsdFileCfg(
-            usd_path=usd_path,
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                disable_gravity=False, max_depenetration_velocity=5.0,
-            ),
-            collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.005, rest_offset=0.0),
-            mass_props=sim_utils.MassPropertiesCfg(mass=_OBJECT_MASS[name]),
-        ),
+        spawn=sim_utils.UsdFileCfg(usd_path=usd_path),
     )
 
 
