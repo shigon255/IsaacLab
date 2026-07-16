@@ -221,8 +221,18 @@ class FrankaEEPusherAction(ActionTerm):
         self._processed_actions[:, :2] = torch.clamp(self._processed_actions[:, :2], -1.0, 1.0)
         self._processed_actions[:, :2] *= self.cfg.velocity_scale * self._speed_scale
 
-        # Integrate target EE position in world XY and clamp to workspace
-        self._target_xy += self._processed_actions[:, :2] * self._env.physics_dt
+        # Integrate target EE position in world XY and clamp to workspace.
+        # step_dt (= sim.dt * decimation), NOT physics_dt: process_actions runs
+        # ONCE per env step, which spans `decimation` physics steps — integrating
+        # by physics_dt here silently divided the commanded velocity by
+        # decimation (10 at the current cadence) and re-coupled teleop speed to
+        # any future --substeps change. (PlanarPusherAction above correctly uses
+        # physics_dt because its integration lives in apply_actions(), which
+        # runs once per physics step.) Every FrankaEEPusherActionCfg
+        # velocity_scale/z_velocity_scale was renormalized /10 in the same
+        # commit, so the effective (already-tuned) EE speed is unchanged —
+        # velocity_scale is now honestly "m/s per normalized command unit".
+        self._target_xy += self._processed_actions[:, :2] * self._env.step_dt
         self._target_xy[:] = torch.max(
             torch.min(self._target_xy, self._workspace_high), self._workspace_low
         )
@@ -232,8 +242,8 @@ class FrankaEEPusherAction(ActionTerm):
             self._raw_actions[:, 2] = actions[:, 2]
             self._processed_actions[:, 2] = torch.clamp(self._raw_actions[:, 2], -1.0, 1.0)
             self._processed_actions[:, 2] *= self.cfg.z_velocity_scale * self._speed_scale
-            # Integrate Z target and clamp to z workspace
-            self._target_z += self._processed_actions[:, 2] * self._env.physics_dt
+            # Integrate Z target and clamp to z workspace (step_dt: see above)
+            self._target_z += self._processed_actions[:, 2] * self._env.step_dt
             self._target_z.clamp_(self._z_ws_low, self._z_ws_high)
 
     def apply_actions(self):
@@ -323,14 +333,22 @@ class FrankaEEPusherActionCfg(ActionTermCfg):
     ee_z_height: float = 0.15
     """Fixed world-frame Z the Franka EE tracks (metres above table surface)."""
 
-    velocity_scale: float = 0.35
-    """Scaling applied to the xy velocity after rotation (m/s per normalised unit)."""
+    velocity_scale: float = 0.035
+    """Scaling applied to the xy velocity after rotation (m/s per normalised unit).
+
+    Renormalized from 0.35 when process_actions() switched its integration from
+    physics_dt to step_dt (the old value was only ever applied /decimation=10),
+    so the effective, already-tuned EE speed is unchanged.
+    """
 
     yaw_rate_scale: float = 0.0
     """Unused — kept for API compatibility. The 3rd action channel is repurposed as vz."""
 
-    z_velocity_scale: float = 0.35
-    """Scaling applied to the Z (vertical) velocity channel (m/s per normalised unit)."""
+    z_velocity_scale: float = 0.035
+    """Scaling applied to the Z (vertical) velocity channel (m/s per normalised unit).
+
+    Renormalized from 0.35 alongside velocity_scale — see its docstring.
+    """
 
     z_workspace: tuple[float, float] = (0.05, 0.40)
     """(min_z, max_z) clamp for the EE height target (world frame, metres)."""

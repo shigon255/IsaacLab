@@ -228,8 +228,8 @@ class ActionsCfg:
         # clear of the whole block row (X=[-0.15, 0.15]), same as franka_stack's own
         # cube-clearing default.
         ee_z_height=0.25,
-        velocity_scale=0.35,
-        z_velocity_scale=0.20,
+        velocity_scale=0.035,
+        z_velocity_scale=0.020,
         z_workspace=(0.005, 0.40),
         workspace=((-0.42, -0.25), (0.12, 0.25)),
         control_yaw_offset=0.0,
@@ -251,8 +251,8 @@ class ActionsCfg:
         # See pusher_left's comment above -- same bug (default_target_xy=(0.15, 0.0) was
         # EXACTLY block_3's spawn position), same fix.
         ee_z_height=0.25,
-        velocity_scale=0.35,
-        z_velocity_scale=0.20,
+        velocity_scale=0.035,
+        z_velocity_scale=0.020,
         z_workspace=(0.005, 0.40),
         workspace=((-0.12, -0.25), (0.42, 0.25)),
         control_yaw_offset=0.0,

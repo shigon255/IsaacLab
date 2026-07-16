@@ -59,7 +59,18 @@ from isaaclab_assets.robots.x5 import X5_HIGH_PD_CFG
 
 from ..pusht import mdp
 from ..pusht.mdp.actions import FrankaEEPusherActionCfg
-from ..pusht.pusht_env_cfg import BLOCK_HEIGHT, GOAL_XY, GOAL_YAW, OBJECT_Z, TABLE_TOP_Z
+from ..pusht.pusht_env_cfg import BLOCK_HEIGHT, GOAL_YAW, OBJECT_Z, TABLE_TOP_Z
+
+# This scene's OWN goal pose -- deliberately NOT imported from ..pusht.pusht_env_cfg
+# like the shared constants above: ALOHA Push-T's goal sits at (0.16, 0.02), but
+# RoboDojo Push-T's goal is at (0.0, -0.15) on both other sides of the contract --
+# phys-vidsim's simulation/isaac_backend/scenes/robodojo_pusht.py (task_success/
+# metadata) and the Genesis counterpart simulation/robodojo_pusht/scene.py
+# (GOAL_T_POS). Importing ALOHA's value here spawned the visible goal decal (and
+# scored success) at a different spot than task_success() evaluates: a visually
+# perfect demo scored IoU~0. GOAL_YAW (pi/4) genuinely agrees across all three,
+# so that one stays imported.
+GOAL_XY = (0.0, -0.15)
 
 # 180 deg yaw around Z, (w,x,y,z) -- same encoding pusht_bimanual_env_cfg.py's _ROT_180_Z uses.
 _ROT_180_Z = (0.0, 0.0, 0.0, 1.0)
@@ -179,8 +190,8 @@ class ActionsCfg:
         arm_joint_names=_ARM_JOINT_NAMES,
         ee_body_name=_EE_BODY_NAME,
         ee_z_height=OBJECT_Z,
-        velocity_scale=0.35,
-        z_velocity_scale=0.20,
+        velocity_scale=0.035,
+        z_velocity_scale=0.020,
         z_workspace=(0.01, 0.40),
         workspace=((-0.35, -0.25), (0.15, 0.25)),
         control_yaw_offset=0.0,
@@ -201,8 +212,8 @@ class ActionsCfg:
         arm_joint_names=_ARM_JOINT_NAMES,
         ee_body_name=_EE_BODY_NAME,
         ee_z_height=OBJECT_Z,
-        velocity_scale=0.35,
-        z_velocity_scale=0.20,
+        velocity_scale=0.035,
+        z_velocity_scale=0.020,
         z_workspace=(0.01, 0.40),
         workspace=((-0.15, -0.25), (0.35, 0.25)),
         control_yaw_offset=0.0,

@@ -205,8 +205,8 @@ class ActionsCfg:
         ee_body_name="gripper_link",
         # gripper_link centre at lower quarter of T-block: TABLE_TOP_Z + BLOCK_HEIGHT * 0.25 = 0.01
         ee_z_height=TABLE_TOP_Z + BLOCK_HEIGHT * 0.25,
-        velocity_scale=0.35,
-        z_velocity_scale=0.20,
+        velocity_scale=0.035,
+        z_velocity_scale=0.020,
         z_workspace=(0.005, 0.40),
         workspace=((-0.42, -0.25), (0.12, 0.25)),
         control_yaw_offset=0.0,
@@ -221,8 +221,8 @@ class ActionsCfg:
         ee_body_name="gripper_link",
         # gripper_link centre at lower quarter of T-block: TABLE_TOP_Z + BLOCK_HEIGHT * 0.25 = 0.01
         ee_z_height=TABLE_TOP_Z + BLOCK_HEIGHT * 0.25,
-        velocity_scale=0.35,
-        z_velocity_scale=0.20,
+        velocity_scale=0.035,
+        z_velocity_scale=0.020,
         z_workspace=(0.005, 0.40),
         workspace=((-0.12, -0.25), (0.42, 0.25)),
         control_yaw_offset=0.0,

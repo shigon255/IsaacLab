@@ -193,8 +193,8 @@ class ActionsCfg:
         # cares about absolute reach precision).
         ee_body_name="wrist_3_link",
         ee_z_height=0.25,
-        velocity_scale=0.35,
-        z_velocity_scale=0.20,
+        velocity_scale=0.035,
+        z_velocity_scale=0.020,
         z_workspace=(0.02, 0.5),
         workspace=((0.15, -0.35), (0.55, 0.35)),
         control_yaw_offset=0.0,
