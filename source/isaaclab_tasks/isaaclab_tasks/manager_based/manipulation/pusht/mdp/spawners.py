@@ -127,25 +127,22 @@ def spawn_t_shape(
 PushTShapeCfg.func = spawn_t_shape
 
 
-@configclass
-class UsdFileWithMassCfg(UsdFileCfg):
-    """`UsdFileCfg` variant that correctly applies `mass_props` on REFERENCED content whose
-    `UsdPhysics.MassAPI` schema isn't already authored in the source file -- see
-    `spawn_usd_file_with_mass` for why the base spawner's own `mass_props` handling silently
-    no-ops for this case."""
-
-    func: Callable = None
-
-
 def spawn_usd_file_with_mass(
     prim_path: str,
-    cfg: UsdFileWithMassCfg,
+    cfg: UsdFileCfg,
     translation: tuple[float, float, float] | None = None,
     orientation: tuple[float, float, float, float] | None = None,
     **kwargs,
 ) -> Usd.Prim:
-    """Spawn a USD-file asset via `spawn_from_usd`, then explicitly APPLY (not just modify)
-    its mass schema.
+    """Drop-in replacement for `UsdFileCfg`'s default `func` (`spawn_from_usd`) that
+    correctly APPLIES (not just modifies) the mass schema on REFERENCED content whose
+    `UsdPhysics.MassAPI` isn't already authored in the source file. Use via
+    `UsdFileCfg(..., mass_props=..., func=spawn_usd_file_with_mass)` -- `func` is a plain
+    overridable field on the base `SpawnerCfg` (`isaaclab/sim/spawners/spawner_cfg.py`), no
+    custom cfg subclass needed (a `UsdFileCfg` subclass redeclaring `func` as a new dataclass
+    field was tried first and silently ended up `None` at instantiation -- `@configclass`
+    field-shadowing across an already-defaulted parent field, not worth chasing further when
+    passing `func=` explicitly at each call site works and is just as clear).
 
     `spawn_from_usd`'s own `mass_props` handling calls `schemas.modify_mass_properties`
     directly (`isaaclab/sim/spawners/from_files/from_files.py`), which requires
@@ -166,6 +163,3 @@ def spawn_usd_file_with_mass(
     if cfg.mass_props is not None:
         schemas.define_mass_properties(prim_path, cfg.mass_props, stage=get_current_stage())
     return prim
-
-
-UsdFileWithMassCfg.func = spawn_usd_file_with_mass

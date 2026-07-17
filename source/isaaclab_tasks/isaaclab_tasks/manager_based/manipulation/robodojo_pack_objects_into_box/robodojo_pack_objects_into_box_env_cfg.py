@@ -19,10 +19,10 @@ MeshConverter physics-baking step needed, same plain UsdFileCfg(usd_path=...) as
 
 Each object's `mass_props` (2026-07-17, phys-vidsim `physics-time-calibration` #33 deliverable
 4) is a real-world target mass, matching `simulation/sim_common/physics_defaults.py`'s
-`ROBODOJO_TARGET_MASS_KG` exactly per kind -- spawned via `UsdFileWithMassCfg`
-(`..pusht.mdp.spawners`), not a plain `sim_utils.UsdFileCfg` (see that spawner's docstring for
-why: RoboDojo's `object.usdz` has no pre-authored `MassAPI`, so `UsdFileCfg`'s own `mass_props`
-handling silently no-ops).
+`ROBODOJO_TARGET_MASS_KG` exactly per kind -- spawned with `func=spawn_usd_file_with_mass`
+(`..pusht.mdp.spawners`) instead of `UsdFileCfg`'s own default `func` (see that spawner's
+docstring for why: RoboDojo's `object.usdz` has no pre-authored `MassAPI`, so the default
+`func`'s own `mass_props` handling silently no-ops).
 
 Object initial positions match the Genesis side exactly
 (`simulation/robodojo_pack_objects_into_box/scene.py`'s `OBJECT_INIT_POS`) -- see that
@@ -53,7 +53,7 @@ from isaaclab.utils import configclass
 from isaaclab_assets.robots.x5 import X5_HIGH_PD_CFG
 
 from ..pusht.mdp.actions import FrankaEEPusherActionCfg
-from ..pusht.mdp.spawners import UsdFileWithMassCfg
+from ..pusht.mdp.spawners import spawn_usd_file_with_mass
 
 # 180 deg yaw around Z, (w,x,y,z) -- same as robodojo_pusht_env_cfg.py.
 _ROT_180_Z = (0.0, 0.0, 0.0, 1.0)
@@ -94,9 +94,10 @@ def _object_cfg(name: str) -> RigidObjectCfg:
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{prim_name}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=_OBJECT_INIT_ROT),
-        spawn=UsdFileWithMassCfg(
+        spawn=sim_utils.UsdFileCfg(
             usd_path=usd_path,
             mass_props=sim_utils.MassPropertiesCfg(mass=_OBJECT_MASS_KG[name]),
+            func=spawn_usd_file_with_mass,
         ),
     )
 

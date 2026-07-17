@@ -25,10 +25,10 @@ cfgs (which set an explicit real-world `mass=` per object), these 5 distinct blo
 flooring/tile-sample assets reused as generic stacking blocks with no individual real-world
 identity -- so a uniform DENSITY (not a per-object mass) is the right calibration axis, matching
 `simulation/sim_common/physics_defaults.py`'s `GENERIC_BLOCK_DENSITY_KG_M3` exactly. PhysX
-computes each block's actual mass from this density x its own exact-mesh volume. Spawned via
-`UsdFileWithMassCfg` (`..pusht.mdp.spawners`), not a plain `sim_utils.UsdFileCfg` -- see that
-spawner's docstring for why (RoboDojo's `object.usdz` has no pre-authored `MassAPI`, so
-`UsdFileCfg`'s own `mass_props` handling silently no-ops). The resulting per-block masses
+computes each block's actual mass from this density x its own exact-mesh volume. Spawned with
+`func=spawn_usd_file_with_mass` (`..pusht.mdp.spawners`) instead of `UsdFileCfg`'s own default
+`func` -- see that spawner's docstring for why (RoboDojo's `object.usdz` has no pre-authored
+`MassAPI`, so the default `func`'s own `mass_props` handling silently no-ops). The resulting per-block masses
 won't numerically match Genesis's (which applies the same density to a convex-HULL volume,
 not the exact mesh), but both backends now apply the same *density*, closing the
 previously-undocumented gap where neither backend examined this at all.
@@ -60,7 +60,7 @@ from isaaclab.utils import configclass
 from isaaclab_assets.robots.x5 import X5_HIGH_PD_CFG
 
 from ..pusht.mdp.actions import FrankaEEPusherActionCfg
-from ..pusht.mdp.spawners import UsdFileWithMassCfg
+from ..pusht.mdp.spawners import spawn_usd_file_with_mass
 
 # 180 deg yaw around Z, (w,x,y,z) -- same as robodojo_pusht_env_cfg.py.
 _ROT_180_Z = (0.0, 0.0, 0.0, 1.0)
@@ -98,9 +98,10 @@ def _block_cfg(name: str) -> RigidObjectCfg:
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{prim_name}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=rot),
-        spawn=UsdFileWithMassCfg(
+        spawn=sim_utils.UsdFileCfg(
             usd_path=usd_path,
             mass_props=sim_utils.MassPropertiesCfg(density=_BLOCK_DENSITY_KG_M3),
+            func=spawn_usd_file_with_mass,
         ),
     )
 

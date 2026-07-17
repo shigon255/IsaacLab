@@ -20,9 +20,9 @@ it's referenced directly via a plain `UsdFileCfg(usd_path=...)`.
 `mass_props=sim_utils.MassPropertiesCfg(mass=_BOWL_MASS_KG)` (2026-07-17, phys-vidsim
 `physics-time-calibration` #33 deliverable 4): the source asset has no explicit mass
 attribute, so it previously fell back to PhysX's density-based default (same as RoboDojo's
-own runtime) -- an unexamined default, not a real bowl's weight. Spawned via
-`UsdFileWithMassCfg` (`..pusht.mdp.spawners`), NOT a plain `sim_utils.UsdFileCfg` --
-confirmed live that `UsdFileCfg`'s own `mass_props` handling silently no-ops here (it calls
+own runtime) -- an unexamined default, not a real bowl's weight. Spawned with
+`func=spawn_usd_file_with_mass` (`..pusht.mdp.spawners`) instead of `UsdFileCfg`'s own default
+`func` -- confirmed live that the default silently no-ops here (it calls
 `schemas.modify_mass_properties`, which requires `UsdPhysics.MassAPI` to already be applied;
 RoboDojo's asset has `RigidBodyAPI`/`CollisionAPI` baked in but not `MassAPI`). See that
 spawner's own docstring for the full mechanism. `_BOWL_MASS_KG` matches the Genesis-side
@@ -59,7 +59,7 @@ from isaaclab.utils import configclass
 from isaaclab_assets.robots.x5 import X5_HIGH_PD_CFG
 
 from ..pusht.mdp.actions import FrankaEEPusherActionCfg
-from ..pusht.mdp.spawners import UsdFileWithMassCfg
+from ..pusht.mdp.spawners import spawn_usd_file_with_mass
 
 # 180 deg yaw around Z, (w,x,y,z) -- same as robodojo_pusht_env_cfg.py.
 _ROT_180_Z = (0.0, 0.0, 0.0, 1.0)
@@ -92,9 +92,10 @@ def _bowl_cfg(name: str) -> RigidObjectCfg:
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{_BOWL_PRIM_NAME[name]}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_BOWL_INIT_POS[name], rot=_BOWL_INIT_ROT),
-        spawn=UsdFileWithMassCfg(
+        spawn=sim_utils.UsdFileCfg(
             usd_path=usd_path,
             mass_props=sim_utils.MassPropertiesCfg(mass=_BOWL_MASS_KG),
+            func=spawn_usd_file_with_mass,
         ),
     )
 

@@ -26,10 +26,10 @@ positions match the Genesis side exactly
 
 Each mug's `mass_props` (2026-07-17, phys-vidsim `physics-time-calibration` #33 deliverable
 4) is a real-world target mass, matching `simulation/sim_common/physics_defaults.py`'s
-`ROBODOJO_TARGET_MASS_KG["mug"]` exactly. Spawned via `UsdFileWithMassCfg`
-(`..pusht.mdp.spawners`), not a plain `sim_utils.UsdFileCfg` (see that spawner's docstring for
-why: RoboDojo's `object.usdz` has no pre-authored `MassAPI`). `cup_holder`, fixed, doesn't
-need one.
+`ROBODOJO_TARGET_MASS_KG["mug"]` exactly. Spawned with `func=spawn_usd_file_with_mass`
+(`..pusht.mdp.spawners`) instead of `UsdFileCfg`'s own default `func` (see that spawner's
+docstring for why: RoboDojo's `object.usdz` has no pre-authored `MassAPI`). `cup_holder`,
+fixed, doesn't need one.
 
 No custom success/out-of-bounds termination -- construction + condition-rendering scope
 only, matching every other robodojo_* env cfg in this fork.
@@ -53,7 +53,7 @@ from isaaclab.utils import configclass
 from isaaclab_assets.robots.x5 import X5_HIGH_PD_CFG
 
 from ..pusht.mdp.actions import FrankaEEPusherActionCfg
-from ..pusht.mdp.spawners import UsdFileWithMassCfg
+from ..pusht.mdp.spawners import spawn_usd_file_with_mass
 
 # 180 deg yaw around Z, (w,x,y,z) -- same as robodojo_pusht_env_cfg.py.
 _ROT_180_Z = (0.0, 0.0, 0.0, 1.0)
@@ -91,9 +91,10 @@ def _mug_cfg(name: str) -> RigidObjectCfg:
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{name.capitalize()}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_MUG_POS[name], rot=_MUG_INIT_ROT),
-        spawn=UsdFileWithMassCfg(
+        spawn=sim_utils.UsdFileCfg(
             usd_path=_usd_path(_MUG_STAGED_DIR),
             mass_props=sim_utils.MassPropertiesCfg(mass=_MUG_MASS_KG),
+            func=spawn_usd_file_with_mass,
         ),
     )
 

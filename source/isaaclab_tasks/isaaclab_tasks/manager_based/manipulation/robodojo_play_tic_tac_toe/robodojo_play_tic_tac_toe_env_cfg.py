@@ -25,9 +25,10 @@ doesn't need a `mass_props` override either.
 Each piece's `mass_props` (2026-07-17, phys-vidsim `physics-time-calibration` #33 deliverable
 4) is a real-world target mass, matching `simulation/sim_common/physics_defaults.py`'s
 `ROBODOJO_TARGET_MASS_KG["chessman"]` -- applied uniformly to both piece types (player/
-opponent are the same real-world identity, just different chessman mesh indices). Spawned via
-`UsdFileWithMassCfg` (`..pusht.mdp.spawners`), not a plain `sim_utils.UsdFileCfg` (see that
-spawner's docstring for why: RoboDojo's `object.usdz` has no pre-authored `MassAPI`).
+opponent are the same real-world identity, just different chessman mesh indices). Spawned with
+`func=spawn_usd_file_with_mass` (`..pusht.mdp.spawners`) instead of `UsdFileCfg`'s own default
+`func` (see that spawner's docstring for why: RoboDojo's `object.usdz` has no pre-authored
+`MassAPI`).
 
 Object initial positions match the Genesis side exactly
 (`simulation/robodojo_play_tic_tac_toe/scene.py`'s `BOARD_POS`/`PIECE_INIT_POS`) -- taken
@@ -56,7 +57,7 @@ from isaaclab.utils import configclass
 from isaaclab_assets.robots.x5 import X5_HIGH_PD_CFG
 
 from ..pusht.mdp.actions import FrankaEEPusherActionCfg
-from ..pusht.mdp.spawners import UsdFileWithMassCfg
+from ..pusht.mdp.spawners import spawn_usd_file_with_mass
 
 # 180 deg yaw around Z, (w,x,y,z) -- same as robodojo_pusht_env_cfg.py.
 _ROT_180_Z = (0.0, 0.0, 0.0, 1.0)
@@ -101,9 +102,10 @@ def _piece_cfg(name: str) -> RigidObjectCfg:
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{prim_name}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=_PIECE_INIT_ROT),
-        spawn=UsdFileWithMassCfg(
+        spawn=sim_utils.UsdFileCfg(
             usd_path=_usd_path(staged_dir),
             mass_props=sim_utils.MassPropertiesCfg(mass=_PIECE_MASS_KG),
+            func=spawn_usd_file_with_mass,
         ),
     )
 

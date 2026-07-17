@@ -29,10 +29,10 @@ a prior scene's positions).
 
 `mallet`/`mallet_stand`'s `mass_props` (2026-07-17, phys-vidsim `physics-time-calibration`
 #33 deliverable 4) are real-world target masses, matching `simulation/sim_common/
-physics_defaults.py`'s `ROBODOJO_TARGET_MASS_KG` exactly. Spawned via `UsdFileWithMassCfg`
-(`..pusht.mdp.spawners`), not a plain `sim_utils.UsdFileCfg` (see that spawner's docstring
-for why: RoboDojo's `object.usdz` has no pre-authored `MassAPI`). Fixed `xylophone` doesn't
-need one.
+physics_defaults.py`'s `ROBODOJO_TARGET_MASS_KG` exactly. Spawned with
+`func=spawn_usd_file_with_mass` (`..pusht.mdp.spawners`) instead of `UsdFileCfg`'s own default
+`func` (see that spawner's docstring for why: RoboDojo's `object.usdz` has no pre-authored
+`MassAPI`). Fixed `xylophone` doesn't need one.
 
 No custom success/out-of-bounds termination -- construction + condition-rendering scope
 only, matching every other robodojo_* env cfg in this fork.
@@ -56,7 +56,7 @@ from isaaclab.utils import configclass
 from isaaclab_assets.robots.x5 import X5_HIGH_PD_CFG
 
 from ..pusht.mdp.actions import FrankaEEPusherActionCfg
-from ..pusht.mdp.spawners import UsdFileWithMassCfg
+from ..pusht.mdp.spawners import spawn_usd_file_with_mass
 
 # 180 deg yaw around Z, (w,x,y,z) -- same as robodojo_pusht_env_cfg.py.
 _ROT_180_Z = (0.0, 0.0, 0.0, 1.0)
@@ -130,18 +130,20 @@ class RobodojoPlayXylophoneSceneCfg(InteractiveSceneCfg):
     mallet_stand = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/MalletStand",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_MALLET_STAND_POS, rot=_INIT_ROT),
-        spawn=UsdFileWithMassCfg(
+        spawn=sim_utils.UsdFileCfg(
             usd_path=_usd_path("mallet_stand_00000"),
             mass_props=sim_utils.MassPropertiesCfg(mass=_MALLET_STAND_MASS_KG),
+            func=spawn_usd_file_with_mass,
         ),
     )
 
     mallet = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Mallet",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_MALLET_POS, rot=_INIT_ROT),
-        spawn=UsdFileWithMassCfg(
+        spawn=sim_utils.UsdFileCfg(
             usd_path=_usd_path("mallet_00000"),
             mass_props=sim_utils.MassPropertiesCfg(mass=_MALLET_MASS_KG),
+            func=spawn_usd_file_with_mass,
         ),
     )
 
