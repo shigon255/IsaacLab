@@ -27,6 +27,12 @@ Object initial positions match the Genesis side exactly
 (the xylophone's unusually large footprint required real clearance checking, not reuse of
 a prior scene's positions).
 
+`mallet`/`mallet_stand`'s `mass_props` (2026-07-17, phys-vidsim `physics-time-calibration`
+#33 deliverable 4) are real-world target masses, matching `simulation/sim_common/
+physics_defaults.py`'s `ROBODOJO_TARGET_MASS_KG` exactly -- see
+`robodojo_stack_bowls_env_cfg.py`'s docstring for why this works on an already-baked
+referenced prim. Fixed `xylophone` doesn't need one.
+
 No custom success/out-of-bounds termination -- construction + condition-rendering scope
 only, matching every other robodojo_* env cfg in this fork.
 """
@@ -65,6 +71,11 @@ _XYLOPHONE_POS = (0.0, -0.35, 0.0)
 _MALLET_STAND_POS = (0.28, -0.15, 0.0276)
 _MALLET_POS = (0.28, -0.42, 0.033)
 _INIT_ROT = (1.0, 0.0, 0.0, 0.0)
+
+# Real-world target mass (kg) -- matches phys-vidsim's sim_common/physics_defaults.py
+# ROBODOJO_TARGET_MASS_KG exactly.
+_MALLET_STAND_MASS_KG = 0.05
+_MALLET_MASS_KG = 0.03
 
 
 def _usd_path(staged_dir: str) -> str:
@@ -117,13 +128,19 @@ class RobodojoPlayXylophoneSceneCfg(InteractiveSceneCfg):
     mallet_stand = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/MalletStand",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_MALLET_STAND_POS, rot=_INIT_ROT),
-        spawn=sim_utils.UsdFileCfg(usd_path=_usd_path("mallet_stand_00000")),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=_usd_path("mallet_stand_00000"),
+            mass_props=sim_utils.MassPropertiesCfg(mass=_MALLET_STAND_MASS_KG),
+        ),
     )
 
     mallet = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Mallet",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_MALLET_POS, rot=_INIT_ROT),
-        spawn=sim_utils.UsdFileCfg(usd_path=_usd_path("mallet_00000")),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=_usd_path("mallet_00000"),
+            mass_props=sim_utils.MassPropertiesCfg(mass=_MALLET_MASS_KG),
+        ),
     )
 
     fixed_cam = CameraCfg(

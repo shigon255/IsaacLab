@@ -19,6 +19,19 @@ bowl in #18, holds for every RoboDojo asset since they share one export pipeline
 MeshConverter physics-baking step needed, same plain UsdFileCfg(usd_path=...) as every
 other robodojo_* object.
 
+`mass_props=sim_utils.MassPropertiesCfg(density=_BLOCK_DENSITY_KG_M3)` (2026-07-17,
+phys-vidsim `physics-time-calibration` #33 deliverable 4): unlike the other robodojo_* env
+cfgs (which set an explicit real-world `mass=` per object), these 5 distinct block meshes are
+flooring/tile-sample assets reused as generic stacking blocks with no individual real-world
+identity -- so a uniform DENSITY (not a per-object mass) is the right calibration axis, matching
+`simulation/sim_common/physics_defaults.py`'s `GENERIC_BLOCK_DENSITY_KG_M3` exactly. PhysX
+computes each block's actual mass from this density x its own exact-mesh volume (see
+`robodojo_stack_bowls_env_cfg.py`'s docstring for why `mass_props` works on an already-baked
+referenced prim) -- the resulting per-block masses won't numerically match Genesis's (which
+applies the same density to a convex-HULL volume, not the exact mesh), but both backends now
+apply the same *density*, closing the previously-undocumented gap where neither backend
+examined this at all.
+
 Object initial positions/rotations match the Genesis side exactly
 (`simulation/robodojo_build_tower/scene.py`'s `BLOCK_INIT_POS`/`BLOCK_INIT_QUAT`) -- see
 that module's docstring for the layout derivation (two side clusters + two planks, hand-
@@ -68,6 +81,11 @@ _BLOCK_SPECS: dict[str, tuple[str, str, tuple[float, float, float], tuple[float,
 }
 _REPO_ROOT_USD_DIR = "_robodojo_object_usd"
 
+# Generic block density (kg/m^3) -- matches phys-vidsim's sim_common/physics_defaults.py
+# GENERIC_BLOCK_DENSITY_KG_M3 exactly (a light solid-wood-like value; these blocks have no
+# individual real-world identity, see module docstring).
+_BLOCK_DENSITY_KG_M3 = 600.0
+
 
 def _block_cfg(name: str) -> RigidObjectCfg:
     from pathlib import Path
@@ -78,7 +96,10 @@ def _block_cfg(name: str) -> RigidObjectCfg:
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{prim_name}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=rot),
-        spawn=sim_utils.UsdFileCfg(usd_path=usd_path),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=usd_path,
+            mass_props=sim_utils.MassPropertiesCfg(density=_BLOCK_DENSITY_KG_M3),
+        ),
     )
 
 

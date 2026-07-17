@@ -24,6 +24,11 @@ Object assets staged into this repo's gitignored `_robodojo_object_usd/`. Object
 positions match the Genesis side exactly
 (`simulation/robodojo_hang_mugs/scene.py`'s `MUG_INIT_POS`/`CUP_HOLDER_POS`).
 
+Each mug's `mass_props` (2026-07-17, phys-vidsim `physics-time-calibration` #33 deliverable
+4) is a real-world target mass, matching `simulation/sim_common/physics_defaults.py`'s
+`ROBODOJO_TARGET_MASS_KG["mug"]` exactly -- see `robodojo_stack_bowls_env_cfg.py`'s docstring
+for why this works on an already-baked referenced prim. `cup_holder`, fixed, doesn't need one.
+
 No custom success/out-of-bounds termination -- construction + condition-rendering scope
 only, matching every other robodojo_* env cfg in this fork.
 """
@@ -67,6 +72,10 @@ _MUG_POS: dict[str, tuple[float, float, float]] = {
 }
 _MUG_INIT_ROT = (1.0, 0.0, 0.0, 0.0)
 
+# Real-world target mass (kg) -- matches phys-vidsim's sim_common/physics_defaults.py
+# ROBODOJO_TARGET_MASS_KG["mug"] exactly (a ceramic mug, typical 300-400g).
+_MUG_MASS_KG = 0.35
+
 
 def _usd_path(staged_dir: str) -> str:
     from pathlib import Path
@@ -79,7 +88,10 @@ def _mug_cfg(name: str) -> RigidObjectCfg:
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{name.capitalize()}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_MUG_POS[name], rot=_MUG_INIT_ROT),
-        spawn=sim_utils.UsdFileCfg(usd_path=_usd_path(_MUG_STAGED_DIR)),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=_usd_path(_MUG_STAGED_DIR),
+            mass_props=sim_utils.MassPropertiesCfg(mass=_MUG_MASS_KG),
+        ),
     )
 
 

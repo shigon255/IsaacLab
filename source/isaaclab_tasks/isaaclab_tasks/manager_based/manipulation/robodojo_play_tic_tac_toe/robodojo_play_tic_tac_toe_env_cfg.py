@@ -19,7 +19,15 @@ pipeline ships PhysicsRigidBodyAPI + PhysicsCollisionAPI baked into every object
 (confirmed for the bowl in #18, holds for every RoboDojo asset since they share one export
 pipeline) -- no MeshConverter physics-baking step needed for the movable pieces, same plain
 UsdFileCfg(usd_path=...) as every other robodojo_* object; the static board doesn't need
-rigid-body physics at all (a fixed AssetBaseCfg, like the table).
+rigid-body physics at all (a fixed AssetBaseCfg, like the table) -- and correspondingly
+doesn't need a `mass_props` override either.
+
+Each piece's `mass_props` (2026-07-17, phys-vidsim `physics-time-calibration` #33 deliverable
+4) is a real-world target mass, matching `simulation/sim_common/physics_defaults.py`'s
+`ROBODOJO_TARGET_MASS_KG["chessman"]` -- applied uniformly to both piece types (player/
+opponent are the same real-world identity, just different chessman mesh indices). See
+`robodojo_stack_bowls_env_cfg.py`'s docstring for why this works on an already-baked
+referenced prim.
 
 Object initial positions match the Genesis side exactly
 (`simulation/robodojo_play_tic_tac_toe/scene.py`'s `BOARD_POS`/`PIECE_INIT_POS`) -- taken
@@ -75,6 +83,10 @@ _PIECE_SPECS: dict[str, tuple[str, str, tuple[float, float, float]]] = {
 }
 _PIECE_INIT_ROT = (1.0, 0.0, 0.0, 0.0)
 
+# Real-world target mass (kg) -- matches phys-vidsim's sim_common/physics_defaults.py
+# ROBODOJO_TARGET_MASS_KG["chessman"] exactly (a small game piece / peg).
+_PIECE_MASS_KG = 0.02
+
 
 def _usd_path(staged_dir: str) -> str:
     from pathlib import Path
@@ -88,7 +100,10 @@ def _piece_cfg(name: str) -> RigidObjectCfg:
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{prim_name}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=_PIECE_INIT_ROT),
-        spawn=sim_utils.UsdFileCfg(usd_path=_usd_path(staged_dir)),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=_usd_path(staged_dir),
+            mass_props=sim_utils.MassPropertiesCfg(mass=_PIECE_MASS_KG),
+        ),
     )
 
 

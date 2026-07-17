@@ -20,6 +20,12 @@ as every other robodojo_* object.
 Object initial positions match the Genesis side exactly
 (`simulation/robodojo_sort_nesting_dolls_by_size/scene.py`'s `DOLL_INIT_POS`).
 
+Each doll's `mass_props` (2026-07-17, phys-vidsim `physics-time-calibration` #33 deliverable
+4) is a real-world target mass, size-ordered largest-to-smallest exactly matching
+`simulation/sim_common/physics_defaults.py`'s `MATRYOSHKA_DOLL_MASS_KG_BY_SIZE`
+(doll0=largest). See `robodojo_stack_bowls_env_cfg.py`'s docstring for why this works on an
+already-baked referenced prim.
+
 No custom success/out-of-bounds termination -- construction + condition-rendering scope
 only, matching every other robodojo_* env cfg in this fork.
 """
@@ -63,6 +69,16 @@ _DOLL_SPECS: dict[str, tuple[str, str, tuple[float, float, float]]] = {
 }
 _DOLL_INIT_ROT = (1.0, 0.0, 0.0, 0.0)
 
+# Real-world target mass (kg), largest to smallest -- matches phys-vidsim's sim_common/
+# physics_defaults.py MATRYOSHKA_DOLL_MASS_KG_BY_SIZE exactly.
+_DOLL_MASS_KG: dict[str, float] = {
+    "doll0": 0.120,
+    "doll1": 0.070,
+    "doll2": 0.035,
+    "doll3": 0.015,
+    "doll4": 0.008,
+}
+
 
 def _doll_cfg(name: str) -> RigidObjectCfg:
     from pathlib import Path
@@ -73,7 +89,10 @@ def _doll_cfg(name: str) -> RigidObjectCfg:
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{prim_name}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=_DOLL_INIT_ROT),
-        spawn=sim_utils.UsdFileCfg(usd_path=usd_path),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=usd_path,
+            mass_props=sim_utils.MassPropertiesCfg(mass=_DOLL_MASS_KG[name]),
+        ),
     )
 
 

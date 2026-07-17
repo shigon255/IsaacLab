@@ -17,6 +17,12 @@ pxr.Usd.Stage.Traverse() (not assumed from the bowl's precedent) that all 5 obje
 ship PhysicsRigidBodyAPI + PhysicsCollisionAPI/PhysicsMeshCollisionAPI baked in -- no
 MeshConverter physics-baking step needed, same plain UsdFileCfg(usd_path=...) as the bowl.
 
+Each object's `mass_props` (2026-07-17, phys-vidsim `physics-time-calibration` #33 deliverable
+4) is a real-world target mass, matching `simulation/sim_common/physics_defaults.py`'s
+`ROBODOJO_TARGET_MASS_KG` exactly per kind -- see `robodojo_stack_bowls_env_cfg.py`'s docstring
+for why overriding mass on an already-`RigidBodyAPI`-baked referenced prim works via
+`modify_mass_properties`'s `apply_nested` resolution, unlike the robosuite MeshConverter case.
+
 Object initial positions match the Genesis side exactly
 (`simulation/robodojo_pack_objects_into_box/scene.py`'s `OBJECT_INIT_POS`) -- see that
 module's docstring for why they're NOT simply spread on a grid: positions were tuned twice
@@ -66,6 +72,16 @@ _OBJECT_SPECS: dict[str, tuple[str, str, tuple[float, float, float]]] = {
 _OBJECT_INIT_ROT = (1.0, 0.0, 0.0, 0.0)
 _REPO_ROOT_USD_DIR = "_robodojo_object_usd"
 
+# Real-world target mass (kg) per object -- matches phys-vidsim's sim_common/
+# physics_defaults.py ROBODOJO_TARGET_MASS_KG exactly.
+_OBJECT_MASS_KG: dict[str, float] = {
+    "car":                 0.10,
+    "electric_toothbrush": 0.12,
+    "hammer":              0.30,
+    "shoe":                0.30,
+    "box":                 0.20,
+}
+
 
 def _object_cfg(name: str) -> RigidObjectCfg:
     from pathlib import Path
@@ -76,7 +92,10 @@ def _object_cfg(name: str) -> RigidObjectCfg:
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{prim_name}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=_OBJECT_INIT_ROT),
-        spawn=sim_utils.UsdFileCfg(usd_path=usd_path),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=usd_path,
+            mass_props=sim_utils.MassPropertiesCfg(mass=_OBJECT_MASS_KG[name]),
+        ),
     )
 
 
