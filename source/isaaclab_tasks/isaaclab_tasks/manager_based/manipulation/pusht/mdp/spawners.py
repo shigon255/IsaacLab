@@ -127,6 +127,7 @@ def spawn_t_shape(
 PushTShapeCfg.func = spawn_t_shape
 
 
+@clone
 def spawn_usd_file_with_mass(
     prim_path: str,
     cfg: UsdFileCfg,
@@ -158,6 +159,15 @@ def spawn_usd_file_with_mass(
     exactly what referenced content with no pre-authored `MassAPI` needs instead. Runs
     harmlessly alongside `spawn_from_usd`'s own no-op attempt -- this function's explicit call
     afterward is what actually takes effect.
+
+    The `@clone` decorator (matching `spawn_t_shape`'s own decoration above) is required, not
+    optional -- confirmed live: without it, `AssetBase.__init__` calls this function directly
+    with the UNRESOLVED regex prim path (e.g. `/World/envs/env_.*/Bowl0`), and
+    `define_mass_properties` below raises `ValueError: Prim path '...' is not valid` since
+    that's never a literal path on the stage. `@clone` resolves the regex to the concrete
+    per-env path BEFORE calling this function; `spawn_from_usd` below then receives an
+    already-concrete path, which its own (also `@clone`-decorated) wrapper passes through
+    unchanged (`is_regex_expression` is false for an already-resolved path).
     """
     prim = spawn_from_usd(prim_path, cfg, translation, orientation, **kwargs)
     if cfg.mass_props is not None:
