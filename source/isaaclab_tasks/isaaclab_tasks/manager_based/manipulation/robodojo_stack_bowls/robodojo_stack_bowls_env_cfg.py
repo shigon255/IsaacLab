@@ -20,15 +20,16 @@ it's referenced directly via a plain `UsdFileCfg(usd_path=...)`.
 `mass_props=sim_utils.MassPropertiesCfg(mass=_BOWL_MASS_KG)` (2026-07-17, phys-vidsim
 `physics-time-calibration` #33 deliverable 4): the source asset has no explicit mass
 attribute, so it previously fell back to PhysX's density-based default (same as RoboDojo's
-own runtime) -- an unexamined default, not a real bowl's weight. `modify_mass_properties`
-(the function `mass_props` drives, see `isaaclab.sim.schemas`) is `apply_nested`-decorated
-and operates on the fully-resolved stage at spawn time, so it correctly overrides the mass
-on the referenced content's already-baked `RigidBodyAPI` prim -- unlike the robosuite
-MeshConverter case above, this isn't creating a physics schema from scratch, just setting a
-value on one that already exists. `_BOWL_MASS_KG` matches the Genesis-side target exactly
-(`simulation/sim_common/physics_defaults.py`'s `ROBODOJO_TARGET_MASS_KG["bowl"]`, phys-vidsim
-repo) so both backends agree on the object's mass even though their density/collision-volume
-values differ (Genesis: convex hull; Isaac: exact mesh).
+own runtime) -- an unexamined default, not a real bowl's weight. Spawned via
+`UsdFileWithMassCfg` (`..pusht.mdp.spawners`), NOT a plain `sim_utils.UsdFileCfg` --
+confirmed live that `UsdFileCfg`'s own `mass_props` handling silently no-ops here (it calls
+`schemas.modify_mass_properties`, which requires `UsdPhysics.MassAPI` to already be applied;
+RoboDojo's asset has `RigidBodyAPI`/`CollisionAPI` baked in but not `MassAPI`). See that
+spawner's own docstring for the full mechanism. `_BOWL_MASS_KG` matches the Genesis-side
+target exactly (`simulation/sim_common/physics_defaults.py`'s
+`ROBODOJO_TARGET_MASS_KG["bowl"]`, phys-vidsim repo) so both backends agree on the object's
+mass even though their density/collision-volume values differ (Genesis: convex hull; Isaac:
+exact mesh).
 
 Bowl initial positions match the Genesis side exactly (`simulation/robodojo_stack_bowls/
 scene.py`'s `BOWL_INIT_POS`) -- spread across the table at y=-0.10, x=[-0.18, 0, 0.18],
@@ -58,6 +59,7 @@ from isaaclab.utils import configclass
 from isaaclab_assets.robots.x5 import X5_HIGH_PD_CFG
 
 from ..pusht.mdp.actions import FrankaEEPusherActionCfg
+from ..pusht.mdp.spawners import UsdFileWithMassCfg
 
 # 180 deg yaw around Z, (w,x,y,z) -- same as robodojo_pusht_env_cfg.py.
 _ROT_180_Z = (0.0, 0.0, 0.0, 1.0)
@@ -90,7 +92,7 @@ def _bowl_cfg(name: str) -> RigidObjectCfg:
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{_BOWL_PRIM_NAME[name]}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_BOWL_INIT_POS[name], rot=_BOWL_INIT_ROT),
-        spawn=sim_utils.UsdFileCfg(
+        spawn=UsdFileWithMassCfg(
             usd_path=usd_path,
             mass_props=sim_utils.MassPropertiesCfg(mass=_BOWL_MASS_KG),
         ),

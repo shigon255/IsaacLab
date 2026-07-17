@@ -23,8 +23,9 @@ Object initial positions match the Genesis side exactly
 Each doll's `mass_props` (2026-07-17, phys-vidsim `physics-time-calibration` #33 deliverable
 4) is a real-world target mass, size-ordered largest-to-smallest exactly matching
 `simulation/sim_common/physics_defaults.py`'s `MATRYOSHKA_DOLL_MASS_KG_BY_SIZE`
-(doll0=largest). See `robodojo_stack_bowls_env_cfg.py`'s docstring for why this works on an
-already-baked referenced prim.
+(doll0=largest). Spawned via `UsdFileWithMassCfg` (`..pusht.mdp.spawners`), not a plain
+`sim_utils.UsdFileCfg` (see that spawner's docstring for why: RoboDojo's `object.usdz` has no
+pre-authored `MassAPI`).
 
 No custom success/out-of-bounds termination -- construction + condition-rendering scope
 only, matching every other robodojo_* env cfg in this fork.
@@ -48,6 +49,7 @@ from isaaclab.utils import configclass
 from isaaclab_assets.robots.x5 import X5_HIGH_PD_CFG
 
 from ..pusht.mdp.actions import FrankaEEPusherActionCfg
+from ..pusht.mdp.spawners import UsdFileWithMassCfg
 
 # 180 deg yaw around Z, (w,x,y,z) -- same as robodojo_pusht_env_cfg.py.
 _ROT_180_Z = (0.0, 0.0, 0.0, 1.0)
@@ -89,7 +91,7 @@ def _doll_cfg(name: str) -> RigidObjectCfg:
     return RigidObjectCfg(
         prim_path=f"{{ENV_REGEX_NS}}/{prim_name}",
         init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=_DOLL_INIT_ROT),
-        spawn=sim_utils.UsdFileCfg(
+        spawn=UsdFileWithMassCfg(
             usd_path=usd_path,
             mass_props=sim_utils.MassPropertiesCfg(mass=_DOLL_MASS_KG[name]),
         ),

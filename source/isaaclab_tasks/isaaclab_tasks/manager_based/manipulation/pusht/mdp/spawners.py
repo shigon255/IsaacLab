@@ -11,6 +11,8 @@ from pxr import Usd
 
 from isaaclab.sim import schemas
 from isaaclab.sim.spawners import materials
+from isaaclab.sim.spawners.from_files.from_files import spawn_from_usd
+from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 from isaaclab.sim.spawners.spawner_cfg import RigidObjectSpawnerCfg
 from isaaclab.sim.utils import bind_physics_material, bind_visual_material, clone, create_prim, get_current_stage
 from isaaclab.utils import configclass
@@ -123,3 +125,47 @@ def spawn_t_shape(
 
 
 PushTShapeCfg.func = spawn_t_shape
+
+
+@configclass
+class UsdFileWithMassCfg(UsdFileCfg):
+    """`UsdFileCfg` variant that correctly applies `mass_props` on REFERENCED content whose
+    `UsdPhysics.MassAPI` schema isn't already authored in the source file -- see
+    `spawn_usd_file_with_mass` for why the base spawner's own `mass_props` handling silently
+    no-ops for this case."""
+
+    func: Callable = None
+
+
+def spawn_usd_file_with_mass(
+    prim_path: str,
+    cfg: UsdFileWithMassCfg,
+    translation: tuple[float, float, float] | None = None,
+    orientation: tuple[float, float, float, float] | None = None,
+    **kwargs,
+) -> Usd.Prim:
+    """Spawn a USD-file asset via `spawn_from_usd`, then explicitly APPLY (not just modify)
+    its mass schema.
+
+    `spawn_from_usd`'s own `mass_props` handling calls `schemas.modify_mass_properties`
+    directly (`isaaclab/sim/spawners/from_files/from_files.py`), which requires
+    `UsdPhysics.MassAPI` to already be applied to the target prim -- that function's own body
+    is `if not UsdPhysics.MassAPI(rigid_prim): return False`. RoboDojo's `object.usdz` assets
+    ship `PhysicsRigidBodyAPI`/`PhysicsCollisionAPI` baked in but NOT `MassAPI`, so
+    `modify_mass_properties` silently fails on every prim in the referenced subtree (a
+    `Could not perform 'modify_mass_properties' on any prims...` warning at spawn time --
+    confirmed live 2026-07-17, phys-vidsim `physics-time-calibration` #33 deliverable 4; the
+    `mass_props=` originally added directly to `UsdFileCfg` in every `robodojo_*_env_cfg.py`
+    had NO effect). `schemas.define_mass_properties` (already used by `spawn_t_shape` above,
+    for procedurally-authored prims) applies the schema first if missing, then sets it --
+    exactly what referenced content with no pre-authored `MassAPI` needs instead. Runs
+    harmlessly alongside `spawn_from_usd`'s own no-op attempt -- this function's explicit call
+    afterward is what actually takes effect.
+    """
+    prim = spawn_from_usd(prim_path, cfg, translation, orientation, **kwargs)
+    if cfg.mass_props is not None:
+        schemas.define_mass_properties(prim_path, cfg.mass_props, stage=get_current_stage())
+    return prim
+
+
+UsdFileWithMassCfg.func = spawn_usd_file_with_mass
