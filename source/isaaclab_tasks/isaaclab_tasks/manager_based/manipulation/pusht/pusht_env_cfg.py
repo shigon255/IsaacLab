@@ -75,8 +75,11 @@ class PushTSceneCfg(InteractiveSceneCfg):
             func=mdp.spawn_t_shape,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=False,
-                linear_damping=0.15,
-                angular_damping=0.15,
+                # linear/angular damping left unset (None -> PhysX's own 0.0 default),
+                # matching every other rigid object in this repo and the Genesis-side
+                # tblock.xml (explicit damping="0"). A stray 0.15/0.15 override here was
+                # the only non-zero damping in the whole cross-backend scene set, with no
+                # recorded rationale (phys-vidsim physics-time-calibration #33 audit).
                 max_depenetration_velocity=1.0,
                 solver_position_iteration_count=16,
                 solver_velocity_iteration_count=4,
