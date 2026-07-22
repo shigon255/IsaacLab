@@ -34,9 +34,15 @@ using the SAME already-proven procedural-CuboidCfg + RigidObjectCfg pattern
 franka_stack_env_cfg.py's cubes and aloha_blocks_env_cfg.py's blocks already use (no
 mesh conversion, no physics-baking gotcha -- that pattern's spawn-time rigid_props DO
 apply correctly for a procedural spawner, unlike the referenced-USD-file case). Masses
-are reasoned-not-measured (round-nut 0.02kg, square-nut 0.015kg -- see module docstring
-for why: robosuite's fragments specify a material density against actual (non-box)
-geometry, not a usable mass for a box approximation).
+are reasoned-not-measured (round-nut 0.15kg, square-nut 0.12kg -- large industrial-prop
+nut-assembly-task pieces, ~10-11cm span, thin flat steel/brass plate; see module
+docstring for why a real per-nut datasheet doesn't exist: robosuite's fragments specify
+a material density against actual (non-box) geometry, not a usable mass for a box
+approximation). Matches `physics_defaults.ROBOSUITE_TARGET_MASS_KG["round-nut"/
+"square-nut"]` on the phys-vidsim side exactly (sim-verification-campaign #45, F1) --
+the original 0.02kg/0.015kg values were never targeted at a real-world mass either and
+measured far too light on BOTH backends (unlike cereal/can/milk/bread, which were
+already fine on Isaac; only Genesis needed a fix for those).
 
 Camera: fixed_cam mirrors every other scene's CameraCfg exactly (same top-down
 rot=(0,1,0,0) static default) -- same "tune the teleop viewpoint-orbit default
@@ -70,7 +76,7 @@ _NUT_HALF_SIZE: dict[str, tuple[float, float, float]] = {
     "round-nut": (0.07, 0.055, 0.01),
     "square-nut": (0.065, 0.045, 0.01),
 }
-_NUT_MASS: dict[str, float] = {"round-nut": 0.02, "square-nut": 0.015}
+_NUT_MASS: dict[str, float] = {"round-nut": 0.15, "square-nut": 0.12}
 _NUT_RGBA: dict[str, tuple[float, float, float]] = {
     # Loosely matches robosuite's own steel-scratched/brass-ambra material tone.
     "round-nut": (0.6, 0.6, 0.65), "square-nut": (0.65, 0.55, 0.25),
