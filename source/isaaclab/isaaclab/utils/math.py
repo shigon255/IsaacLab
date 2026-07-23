@@ -1649,8 +1649,30 @@ def create_rotation_matrix_from_view(
     y_axis = torch.nn.functional.normalize(torch.cross(z_axis, x_axis, dim=1), eps=1e-5)
     is_close = torch.isclose(x_axis, torch.tensor(0.0), atol=5e-3).all(dim=1, keepdim=True)
     if is_close.any():
-        replacement = torch.nn.functional.normalize(torch.cross(y_axis, z_axis, dim=1), eps=1e-5)
-        x_axis = torch.where(is_close, replacement, x_axis)
+        # up_axis_vec is (numerically) parallel/anti-parallel to z_axis here, so
+        # cross(up_axis_vec, z_axis) degenerates towards the zero vector and
+        # normalize() amplifies whatever float noise survives into an arbitrary
+        # x_axis/roll (sim-verification-campaign #45 F7 -- e.g. every exactly-
+        # top-down camera with up_axis="Z"). The old fallback recomputed
+        # `replacement` from y_axis, but y_axis was ITSELF derived from this same
+        # degenerate x_axis, so it never actually recovered.
+        #
+        # Fix: recompute x_axis from a fixed fallback up vector instead, chosen
+        # orthogonal to up_axis_vec (Y when up_axis is Z, X when up_axis is Y) --
+        # a vector can't be parallel to two orthogonal directions at once, so this
+        # fallback is guaranteed non-degenerate for exactly the view directions
+        # that degenerate the primary one. Recompute y_axis from the FIXED
+        # x_axis too, not the stale degenerate one. Fully deterministic: depends
+        # only on z_axis, not on any noisy intermediate value.
+        fallback_axis_vec = (
+            torch.tensor((0, 0, 1), device=device, dtype=torch.float32)
+            if up_axis == "Y"
+            else torch.tensor((0, 1, 0), device=device, dtype=torch.float32)
+        ).repeat(eyes.shape[0], 1)
+        x_fallback = torch.nn.functional.normalize(torch.cross(fallback_axis_vec, z_axis, dim=1), eps=1e-5)
+        y_fallback = torch.nn.functional.normalize(torch.cross(z_axis, x_fallback, dim=1), eps=1e-5)
+        x_axis = torch.where(is_close, x_fallback, x_axis)
+        y_axis = torch.where(is_close, y_fallback, y_axis)
     R = torch.cat((x_axis[:, None, :], y_axis[:, None, :], z_axis[:, None, :]), dim=1)
     return R.transpose(1, 2)
 
